@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2 {
+            color: #385170;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #385170;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #9fd3c7;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            font-size: 14px;
+            width: 80%;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ececec;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            font-size: 1.2rem;
+            color: #385170;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .result-card {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .cors-status {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .enabled {
+            color: #28a745;
+        }
+
+        .not-enabled {
+            color: #dc3545;
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .blocked {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f1f1f1;
+        }
+
+        .headers-table {
+            margin-top: 20px;
+            width: 100%;
+            background-color: #fff;
+            padding: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>CORS Test Tool</h2>
+    
+    <label for="urlInput">Enter the URL to test CORS:</label>
+    <br><br>
+    <input type="text" id="urlInput" name="urlInput" placeholder="Enter API URL here">
+    <br><br>
+    
+    <button id="testRequest">Test CORS</button>
+
+    <div id="loadingMessage" class="loading" style="display: none;">Checking CORS...</div>
+
+    <div id="response"></div>
+
+    <div id="corsStatus" class="cors-status" style="display: none;"></div>
+
+    <div id="headersSection" class="headers-table" style="display: none;">
+        <h3>CORS Headers:</h3>
+        <table id="headersTable">
+        </table>
+    </div>
+
+    <script>
+        document.getElementById('testRequest').addEventListener("click", function() {
+            var url = document.getElementById('urlInput').value;
+
+            // Clear previous results
+            document.getElementById('response').innerHTML = '';
+            document.getElementById('corsStatus').style.display = 'none';
+            document.getElementById('headersSection').style.display = 'none';
+            document.getElementById('loadingMessage').style.display = 'block';
+
+            if (!url) {
+                document.getElementById('loadingMessage').style.display = 'none';
+                alert("Please enter a URL to test.");
+                return;
+            }
+
+            var requestOptions = {
+                method: 'GET', // You can use other methods like POST, PUT, etc.
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            fetch(url, requestOptions)
+                .then(response => {
+                    // Check if CORS headers are present
+                    const corsEnabled = response.headers.has('Access-Control-Allow-Origin');
+
+                    document.getElementById('loadingMessage').style.display = 'none';
+
+                    // Display result in the response section
+                    if (corsEnabled) {
+                        document.getElementById('response').innerHTML = `
+                            <h4>CORS Headers Found:</h4>
+                            <pre>CORS is enabled for this URL.</pre>
+                        `;
+                        displayCORSHeaders(response);
+                        checkCORSStatus(response.headers);
+                    } else {
+                        document.getElementById('response').innerHTML = `
+                            <h4>Error:</h4>
+                            <pre>CORS is NOT enabled for this URL.</pre>
+                        `;
+                        document.getElementById('corsStatus').innerHTML = `
+                            <p class="not-enabled">CORS is NOT fully enabled for this URL.</p>
+                        `;
+                        document.getElementById('corsStatus').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loadingMessage').style.display = 'none';
+                    document.getElementById('response').innerHTML = `
+                        <h4>Error:</h4>
+                        <pre>${error.message}</pre>
+                    `;
+                    document.getElementById('corsStatus').innerHTML = `
+                        <p class="error">An error occurred while checking the URL.</p>
+                    `;
+                    document.getElementById('corsStatus').style.display = 'block';
+                });
+        });
+
+        // Function to display the CORS headers in a table
+        function displayCORSHeaders(response) {
+            const headers = response.headers;
+            const headersTable = document.getElementById('headersTable');
+            let headersContent = `
+                <tr><th>Header</th><th>Value</th></tr>
+            `;
+
+            headers.forEach((value, key) => {
+                headersContent += `
+                    <tr><td>${key}</td><td>${value}</td></tr>
+                `;
+            });
+
+            headersTable.innerHTML = headersContent;
+            document.getElementById('headersSection').style.display = 'block';
+        }
+
+        // Function to check if CORS is truly enabled
+        function checkCORSStatus(headers) {
+            // Check if the necessary CORS headers are in place
+            if (headers.has('Access-Control-Allow-Origin') && headers.get('Access-Control-Allow-Origin') !== 'null') {
+                document.getElementById('corsStatus').innerHTML = `
+                    <p class="enabled">CORS is ENABLED for this URL.</p>
+                `;
+            } else {
+                document.getElementById('corsStatus').innerHTML = `
+                    <p class="not-enabled">CORS is NOT fully enabled for this URL. The "Access-Control-Allow-Origin" header is missing or misconfigured.</p>
+                `;
+            }
+            document.getElementById('corsStatus').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
